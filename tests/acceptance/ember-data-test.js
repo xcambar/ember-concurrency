@@ -11,8 +11,6 @@ test('perform and cancel-all', function(assert) {
 
   const pretender = new Pretender(function(){
     function usersHandler(/* request */){
-      assert.equal(find(buttonSel).text().trim(), 'Request is pending');
-
       const users = JSON.stringify({
         data: [
           {
@@ -30,7 +28,8 @@ test('perform and cancel-all', function(assert) {
       return [200, { "Content-Type": "application/json" }, users];
     }
 
-    this.get('/users', usersHandler);
+    // delay response for 100 ms so that we can actually see the changes made to the template.
+    this.get('/users', usersHandler, 100);
   });
 
   visit('/data-test');
@@ -40,6 +39,10 @@ test('perform and cancel-all', function(assert) {
   andThen(() => {
     assert.equal(find(buttonSel).text().trim(), 'No request pending');
     click(buttonSel);
+    Ember.run.next(() => {
+      // give ember a chance to render changes before asserting dom state
+      assert.equal(find(buttonSel).text().trim(), 'Request is pending');
+    });
   });
 
   andThen(() => {
