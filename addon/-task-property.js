@@ -42,9 +42,12 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
     };
 
     if (typeof this.fn === 'object') {
-      let owner = getOwner(this.context);
-      let ownerInjection = owner ? owner.ownerInjection() : {};
-      this._taskInstanceFactory = EncapsulatedTask.extend(ownerInjection, this.fn);
+      let root = getOwner(this.context);
+      let ownerInjection = root ? root.ownerInjection() : {};
+      this._taskInstanceFactory = EncapsulatedTask.extend(ownerInjection, {
+        root: this.root,
+        parent: this.parent,
+      }, this.fn);
     }
 
     _cleanupOnDestroy(this.context, this, 'cancelAll');
@@ -65,6 +68,8 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
       _scheduler: this._scheduler,
       _propertyName: this._propertyName,
       _debugCallback: this._debugCallback,
+      root: this.root,
+      parent: this.parent,
     });
   },
 
@@ -208,7 +213,8 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
       fn: this.fn,
       args: fullArgs,
       context: this.context,
-      owner: this.context,
+      root: this.root,
+      parent: this.parent,
       task: this,
       _origin: this,
       _debugCallback: this._debugCallback,

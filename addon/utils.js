@@ -64,22 +64,22 @@ function joinAndSchedule(...args) {
   });
 }
 
-export function _cleanupOnDestroy(owner, object, cleanupMethodName) {
+export function _cleanupOnDestroy(root, object, cleanupMethodName) {
   // TODO: find a non-mutate-y, hacky way of doing this.
-  if (!owner.willDestroy.__ember_processes_destroyers__) {
-    let oldWillDestroy = owner.willDestroy;
+  if (!root.willDestroy.__ember_processes_destroyers__) {
+    let oldWillDestroy = root.willDestroy;
     let disposers = [];
 
-    owner.willDestroy = function() {
+    root.willDestroy = function() {
       for (let i = 0, l = disposers.length; i < l; i ++) {
         disposers[i]();
       }
-      oldWillDestroy.apply(owner, arguments);
+      oldWillDestroy.apply(root, arguments);
     };
-    owner.willDestroy.__ember_processes_destroyers__ = disposers;
+    root.willDestroy.__ember_processes_destroyers__ = disposers;
   }
 
-  owner.willDestroy.__ember_processes_destroyers__.push(() => {
+  root.willDestroy.__ember_processes_destroyers__.push(() => {
     object[cleanupMethodName]();
   });
 }
