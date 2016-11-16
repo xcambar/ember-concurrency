@@ -8,7 +8,7 @@ import getOwner from 'ember-getowner-polyfill';
 import WeakMap from 'ember-weakmap/weak-map';
 
 const NULL_OBJECT = {};
-const FUNCTION_REGISTRY = new WeakMap();
+//const FUNCTION_REGISTRY = new WeakMap();
 
 /**
   The `Task` object lives on a host Ember object (e.g.
@@ -145,7 +145,7 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
     this._super(...arguments);
 
     if (typeof this.fn === 'object') {
-      let owner = getOwner(this.context);
+      let owner = this.context && getOwner(this.context);
       let ownerInjection = owner ? owner.ownerInjection() : {};
       this._taskInstanceFactory = EncapsulatedTask.extend(ownerInjection, this.fn);
     }
@@ -293,7 +293,8 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
       _debugCallback: this._debugCallback,
     });
 
-    if (this.context.isDestroying) {
+    // TODO: maybe only ember-metal initialized tasks should pass in this destroy logic?
+    if (this.context && this.context.isDestroying) {
       taskInstance.cancel();
     }
 
@@ -550,18 +551,19 @@ objectAssign(TaskProperty.prototype, taskModifiers, {
     let tp = this;
 
     let fn = function(...args) {
-      let context = this || NULL_OBJECT;
-      let task = taskWeakMap.get(context);
+      let context = this;
+      let concurrencyContext = context || NULL_OBJECT;
+      let task = taskWeakMap.get(concurrencyContext);
 
       if (!task) {
         task = tp._createTask(context, "(anonymous task)");
-        taskWeakMap.set(context, task);
+        taskWeakMap.set(concurrencyContext, task);
       }
 
       return task.perform(...args);
     };
 
-    FUNCTION_REGISTRY.set(fn, taskWeakMap);
+    //FUNCTION_REGISTRY.set(fn, taskWeakMap);
 
     return fn;
   },
