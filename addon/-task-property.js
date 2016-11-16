@@ -1,11 +1,14 @@
 import Ember from 'ember';
 import TaskInstance from './-task-instance';
 import TaskStateMixin from './-task-state-mixin';
-import { TaskGroup } from './-task-group';
-import { propertyModifiers, resolveScheduler } from './-property-modifiers-mixin';
-import { objectAssign, INVOKE, _cleanupOnDestroy, _ComputedProperty } from './utils';
+import { taskModifiers } from './-task-modifiers-mixin';
+import { objectAssign, INVOKE, _cleanupOnDestroy } from './utils';
 import EncapsulatedTask from './-encapsulated-task';
 import getOwner from 'ember-getowner-polyfill';
+import WeakMap from 'ember-weakmap/weak-map';
+
+const NULL_OBJECT = {};
+const FUNCTION_REGISTRY = new WeakMap();
 
 /**
   The `Task` object lives on a host Ember object (e.g.
@@ -141,14 +144,6 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
   init() {
     this._super(...arguments);
 
-    let self = this;
-    this.perform = function(...args) {
-      if (this !== self) {
-        console.warn(`The use of ${self._propertyName}.perform within a template is deprecated and won't be supported in future versions of ember-concurrency. Please use the \`perform\` helper instead, e.g. {{perform ${self._propertyName}}}`);
-      }
-      return self._perform(...args);
-    };
-
     if (typeof this.fn === 'object') {
       let owner = getOwner(this.context);
       let ownerInjection = owner ? owner.ownerInjection() : {};
@@ -170,7 +165,7 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
       context: this.context,
       _origin: this._origin,
       _taskGroupPath: this._taskGroupPath,
-      _scheduler: this._scheduler,
+      _scheduler: this.get('_scheduler'),
       _propertyName: this._propertyName,
       _debugCallback: this._debugCallback,
     });
@@ -286,7 +281,25 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
    * @param {*} arg* - args to pass to the task function
    * @instance
    */
-  perform: null,
+  perform(...args) {
+    let fullArgs = this._curryArgs ? [...this._curryArgs, ...args] : args;
+    let taskInstance = this._taskInstanceFactory.create({
+      fn: this.fn,
+      args: fullArgs,
+      context: this.context,
+      owner: this.context,
+      task: this,
+      _origin: this,
+      _debugCallback: this._debugCallback,
+    });
+
+    if (this.context.isDestroying) {
+      taskInstance.cancel();
+    }
+
+    this.get('_scheduler').schedule(taskInstance);
+    return taskInstance;
+  },
 
   /**
    * Cancels all running or queued `TaskInstance`s for this Task.
@@ -304,39 +317,6 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
   },
 
   _taskInstanceFactory: TaskInstance,
-
-  _perform(...args) {
-    //let performsTask = this.get('_performs');
-    //if (performsTask) {
-      //args.unshift(performsTask);
-    //}
-
-    let fullArgs = this._curryArgs ? [...this._curryArgs, ...args] : args;
-    let taskInstance = this._taskInstanceFactory.create({
-      fn: this.fn,
-      args: fullArgs,
-      context: this.context,
-      owner: this.context,
-      task: this,
-      _origin: this,
-      _debugCallback: this._debugCallback,
-    });
-
-    if (this.context.isDestroying) {
-      taskInstance.cancel();
-    }
-
-    //if (this._debugCallback) {
-      //this._debugCallback({
-        //type: 'perform',
-        //taskInstance,
-        //task: this,
-      //});
-    //}
-
-    this._scheduler.schedule(taskInstance);
-    return taskInstance;
-  },
 
   _getCompletionPromise() {
     return this._scheduler.getCompletionPromise();
@@ -363,37 +343,8 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
 
   @class TaskProperty
 */
-export function TaskProperty(...decorators) {
-  let taskFn = decorators.pop();
-  let _performsPath;
-
-  let tp = this;
-  _ComputedProperty.call(this, function(_propertyName) {
-    return Task.create({
-      fn: taskFn,
-      context: this,
-      _origin: this,
-      _taskGroupPath: tp._taskGroupPath,
-      _scheduler: resolveScheduler(tp, this, TaskGroup),
-      //_performsPath,
-      _propertyName,
-      _debugCallback: tp._debugCallback,
-    });
-  });
-
-  this.eventNames = null;
-  this.cancelEventNames = null;
-  this._debugCallback = null;
-  this._observes = null;
-
-  for (let i = 0; i < decorators.length; ++i) {
-    let decorator = decorators[i];
-    if (typeof decorator === 'function') {
-      applyDecorator(this, decorator);
-    } else {
-      _performsPath = decorator;
-    }
-  }
+export function TaskProperty(taskFn) {
+  this._sharedConstructor(taskFn);
 }
 
 function applyDecorator(taskProperty, decorator) {
@@ -403,18 +354,24 @@ function applyDecorator(taskProperty, decorator) {
   }
 }
 
-TaskProperty.prototype = Object.create(_ComputedProperty.prototype);
-objectAssign(TaskProperty.prototype, propertyModifiers, {
+TaskProperty.prototype = Object.create(Ember.ComputedProperty.prototype);
+objectAssign(TaskProperty.prototype, taskModifiers, {
   constructor: TaskProperty,
+  _TaskConstructor: Task,
+
+  eventNames: null,
+  cancelEventNames: null,
+  _debugCallback: null,
+  _observes: null,
 
   setup(proto, taskName) {
     if (this._maxConcurrency !== Infinity && !this._hasSetBufferPolicy) {
       Ember.Logger.warn(`The use of maxConcurrency() without a specified task modifier is deprecated and won't be supported in future versions of ember-concurrency. Please specify a task modifier instead, e.g. \`${taskName}: task(...).enqueue().maxConcurrency(${this._maxConcurrency})\``);
     }
 
-    registerOnPrototype(Ember.addListener, proto, this.eventNames, taskName, '_perform', false);
+    registerOnPrototype(Ember.addListener, proto, this.eventNames, taskName, 'perform', false);
     registerOnPrototype(Ember.addListener, proto, this.cancelEventNames, taskName, 'cancelAll', false);
-    registerOnPrototype(Ember.addObserver, proto, this._observes, taskName, '_perform', true);
+    registerOnPrototype(Ember.addObserver, proto, this._observes, taskName, 'perform', true);
   },
 
   /**
@@ -555,6 +512,58 @@ objectAssign(TaskProperty.prototype, propertyModifiers, {
   _debug(cb) {
     this._debugCallback = cb || defaultDebugCallback;
     return this;
+  },
+
+  /**
+   * Casts the TaskProperty to a function that performs the task
+   * when invoked. This essentially makes it possible to use
+   * ember-concurrency tasks on non-Ember objects, even when
+   * task modifiers are being used.
+   *
+   * ```js
+   * function Klass() { }
+   *
+   * Klass.prototype.doDebouncedAsync = task(function * () {
+   *   yield timeout(500);
+   *   yield doAsync();
+   * }).restartable().toFunction();
+   *
+   * let k0 = new Klass();
+   * k0.doDebouncedAsync(); // gets cancelled immediately
+   * k0.doDebouncedAsync();
+   *
+   * // concurrency constraints are scoped to the context of
+   * // the method/function invocation (e.g. `this`), so that
+   * // running `doDebouncedAsync` on another instance of Klass
+   * // won't affect/cancel any running task instances of
+   * // `doDebouncedAsync` on other instances of Klass.
+   * let k1 = new Klass();
+   * k1.doDebouncedAsync();
+   * ```
+   *
+   * @method toFunction
+   * @memberof TaskProperty
+   * @instance
+   */
+  toFunction() {
+    let taskWeakMap = new WeakMap();
+    let tp = this;
+
+    let fn = function(...args) {
+      let context = this || NULL_OBJECT;
+      let task = taskWeakMap.get(context);
+
+      if (!task) {
+        task = tp._createTask(context, "(anonymous task)");
+        taskWeakMap.set(context, task);
+      }
+
+      return task.perform(...args);
+    };
+
+    FUNCTION_REGISTRY.set(fn, taskWeakMap);
+
+    return fn;
   },
 });
 
