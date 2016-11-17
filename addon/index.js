@@ -122,6 +122,15 @@ export function events(obj, eventName) {
   return EventedObservable.create({ obj, eventName });
 }
 
+export function asyncComputed(...deps) {
+  let taskFn = deps.pop();
+  let fn = task(taskFn).restartable().toFunction();
+  return Ember.computed(...deps, function(key) {
+    let args = deps.map(dep => this.get(dep));
+    return fn(...args, key);
+  });
+}
+
 export {
   createObservable,
   all,
