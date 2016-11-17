@@ -1,7 +1,7 @@
 import Ember from 'ember';
 import { isGeneratorIterator, createObservable } from './utils';
 import { TaskProperty } from './-task-property';
-import { didCancel } from './-task-instance';
+import { emit, didCancel } from './-task-instance';
 import { TaskGroupProperty } from './-task-group';
 import EventedObservable from './-evented-observable';
 import { subscribe } from './-subscribe';
@@ -143,6 +143,7 @@ export {
   maxConcurrency,
   cancelOn,
   performOn,
-  didCancel
+  didCancel,
+  emit
 };
 

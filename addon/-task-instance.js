@@ -371,6 +371,11 @@ let taskInstanceAttrs = {
       }
     }
 
+    if (value instanceof EmitBox) {
+      this.set('value', value.value);
+      value = null;
+    }
+
     let observable = normalizeObservable(value);
     if (!observable) {
       this._proceedOrFinalize(done, index, value);
@@ -430,6 +435,14 @@ function normalizeObservable(value) {
   } else {
     return null;
   }
+}
+
+function EmitBox(value) {
+  this.value = value;
+}
+
+export function emit(value) {
+  return new EmitBox(value);
 }
 
 export default TaskInstance;
