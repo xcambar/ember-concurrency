@@ -5,21 +5,21 @@ import { module, test } from 'qunit';
 module('Unit: asyncComputed');
 
 test("basic", function(assert) {
-  assert.expect(6);
+  assert.expect(8);
 
-  let allArgs = [];
+  let allArgs = [], obj;
   let Obj = Ember.Object.extend({
     a: 1,
     b: 2,
     c: 3,
 
     foo: asyncComputed('a', 'b', 'c', function * (...args) {
+      assert.equal(this, obj);
       allArgs.push(args);
       return 123;
     }),
   });
 
-  let obj;
   Ember.run(() => {
     obj = Obj.create();
   });

@@ -127,7 +127,8 @@ export function asyncComputed(...deps) {
   let fn = task(taskFn).restartable().toFunction();
   return Ember.computed(...deps, function(key) {
     let args = deps.map(dep => this.get(dep));
-    return fn(...args, key);
+    args.push(key);
+    return fn.apply(this, args);
   });
 }
 
