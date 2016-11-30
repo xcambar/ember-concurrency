@@ -2,6 +2,7 @@ import Ember from 'ember';
 import { createObservable, yieldableSymbol } from './utils';
 
 const TASK_CANCELATION_NAME = 'TaskCancelation';
+const alias = Ember.computed.alias;
 
 /**
  * Returns true if the object passed to it is a TaskCancelation error.
@@ -85,6 +86,15 @@ let taskInstanceAttrs = {
   _userWillHandlePromise: false,
   task: null,
   args: null,
+
+  last:           alias('task.last'),
+  lastRunning:    alias('task.lastRunning'),
+  lastPerformed:  alias('task.lastPerformed'),
+  lastSuccessful: alias('task.lastSuccessful'),
+  lastComplete:   alias('task.lastComplete'),
+  lastErrored:    alias('task.lastErrored'),
+  lastCanceled:   alias('task.lastCanceled'),
+  lastIncomplete: alias('task.lastIncomplete'),
 
   /**
    * If this TaskInstance runs to completion by returning a property

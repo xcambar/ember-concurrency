@@ -135,6 +135,9 @@ export function subscribe(observable, fnOrTask) {
   let taskInstance = _getRunningTaskInstance();
   Ember.assert("subscribe() can only be called from within a task function (e.g. function * () { yield subscribe(...) })", taskInstance);
 
+  // why make this assert here? this is ultimately something that
+  // should be a yieldable.
+
   return LoopTask.create({
     _taskInstance: taskInstance,
     _fnOrTask: fnOrTask,
