@@ -316,10 +316,6 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
     return taskInstance;
   },
 
-  _getCompletionPromise() {
-    return this._scheduler.getCompletionPromise();
-  },
-
   [INVOKE](...args) {
     return this.perform(...args);
   },
@@ -341,10 +337,7 @@ export const Task = Ember.Object.extend(TaskStateMixin, {
 
   @class TaskProperty
 */
-export function TaskProperty(...decorators) {
-  let taskFn = decorators.pop();
-  let _performsPath;
-
+export function TaskProperty(taskFn) {
   let tp = this;
   _ComputedProperty.call(this, function(_propertyName) {
     return Task.create({
@@ -353,7 +346,6 @@ export function TaskProperty(...decorators) {
       _origin: this,
       _taskGroupPath: tp._taskGroupPath,
       _scheduler: resolveScheduler(tp, this, TaskGroup),
-      //_performsPath,
       _propertyName,
       _debugCallback: tp._debugCallback,
     });
@@ -363,22 +355,6 @@ export function TaskProperty(...decorators) {
   this.cancelEventNames = null;
   this._debugCallback = null;
   this._observes = null;
-
-  for (let i = 0; i < decorators.length; ++i) {
-    let decorator = decorators[i];
-    if (typeof decorator === 'function') {
-      applyDecorator(this, decorator);
-    } else {
-      _performsPath = decorator;
-    }
-  }
-}
-
-function applyDecorator(taskProperty, decorator) {
-  let value = decorator(taskProperty);
-  if (typeof value === 'function') {
-    value(taskProperty);
-  }
 }
 
 TaskProperty.prototype = Object.create(_ComputedProperty.prototype);
