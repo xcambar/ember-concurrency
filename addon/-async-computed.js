@@ -1,6 +1,7 @@
 import Ember from 'ember';
 import TaskInstance from './-task-instance';
 import { yieldableSymbol } from './utils';
+import { all } from './-yieldables';
 
 const { computed, defineProperty, get } = Ember;
 
@@ -28,15 +29,9 @@ export const asyncComputed = (...deps) => {
       //if (lastTaskInstance) lastTaskInstance.cancel()
       return TaskInstance.create({
         fn: function * () {
-          let resolvedArgs = [];
+          let resolvedArgs;
           try {
-            // resolvedArgs = yield all(scopedDeps.map(k => get(this, k)));
-            // note: RSVP.all doesn't eagerly/synchronously handle
-            // child promises that are RSVP/sync compliant.
-            for (let i = 0; i < scopedDeps.length; ++i) {
-              let scopedValue = yield get(ap, scopedDeps[i]);
-              resolvedArgs.push(scopedValue);
-            }
+            resolvedArgs = yield all(scopedDeps.map(d => get(ap, d)));
           } catch(e) {
             console.error("resolve error. TODO handle me.");
             console.error(e);

@@ -1,8 +1,14 @@
 import Ember from 'ember';
 import TaskInstance from './-task-instance';
+import { yieldableSymbol, } from './utils';
 
 const RSVP = Ember.RSVP;
 
+const asyncAll = taskAwareVariantOf(RSVP.Promise, 'all', identity);
+
+function * resolver(value) {
+  return value;
+}
 
 /**
  * A cancelation-aware variant of [Promise.all](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all).
@@ -18,7 +24,38 @@ const RSVP = Ember.RSVP;
  *
  * [Check out the "Awaiting Multiple Child Tasks example"](/#/docs/examples/joining-tasks)
  */
-export let all = taskAwareVariantOf(RSVP.Promise, 'all', identity);
+export const all = (things) => {
+  if (things.length === 0) {
+    return things;
+  }
+
+  for (let i = 0; i < things.length; ++i) {
+    let t = things[i];
+    if(!(t && t[yieldableSymbol])) {
+      return asyncAll(things);
+    }
+  }
+
+  let isAsync = false;
+  let taskInstances = things.map(thing => {
+    let ti = TaskInstance.create({
+      // TODO: consider simpler iterator than full on generator fn?
+      fn: resolver,
+      args: [thing],
+    })._start();
+
+    if (ti._completionState !== 1) {
+      isAsync = true;
+    }
+    return ti;
+  });
+
+  if (isAsync) {
+    return asyncAll(taskInstances);
+  } else {
+    return taskInstances.map(ti => ti.value);
+  }
+};
 
 /**
  * A cancelation-aware variant of [RSVP.allSettled](http://emberjs.com/api/classes/RSVP.html#method_allSettled).
@@ -29,7 +66,7 @@ export let all = taskAwareVariantOf(RSVP.Promise, 'all', identity);
  * - if the task that `yield`ed `allSettled()` is canceled, any of the
  *   {@linkcode TaskInstance}s passed in to `allSettled` will be canceled
  */
-export let allSettled = taskAwareVariantOf(RSVP, 'allSettled', identity);
+export const allSettled = taskAwareVariantOf(RSVP, 'allSettled', identity);
 
 /**
  * A cancelation-aware variant of [Promise.race](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/race).
@@ -44,7 +81,7 @@ export let allSettled = taskAwareVariantOf(RSVP, 'allSettled', identity);
  *
  * [Check out the "Awaiting Multiple Child Tasks example"](/#/docs/examples/joining-tasks)
  */
-export let race = taskAwareVariantOf(RSVP.Promise, 'race', identity);
+export const race = taskAwareVariantOf(RSVP.Promise, 'race', identity);
 
 /**
  * A cancelation-aware variant of [RSVP.hash](http://emberjs.com/api/classes/RSVP.html#hash).
@@ -57,7 +94,7 @@ export let race = taskAwareVariantOf(RSVP.Promise, 'race', identity);
  * - if any of the items rejects/cancels, all other cancelable items
  *   (e.g. {@linkcode TaskInstance}s) will be canceled
  */
-export let hash = taskAwareVariantOf(RSVP, 'hash', getValues);
+export const hash = taskAwareVariantOf(RSVP, 'hash', getValues);
 
 function identity(obj) {
   return obj;

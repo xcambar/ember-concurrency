@@ -1,5 +1,11 @@
 import Ember from 'ember';
-import { yieldableSymbol } from './utils';
+import {
+  yieldableSymbol,
+  YIELDABLE_CONTINUE,
+  YIELDABLE_THROW,
+  YIELDABLE_RETURN,
+  YIELDABLE_CANCEL
+} from './utils';
 
 const { set, get, computed } = Ember;
 
@@ -9,11 +15,6 @@ const COMPLETION_PENDING = 0;
 const COMPLETION_SUCCESS = 1;
 const COMPLETION_ERROR = 2;
 const COMPLETION_CANCEL = 3;
-
-const YIELDABLE_CONTINUE = "next";
-const YIELDABLE_THROW = "throw";
-const YIELDABLE_RETURN = "return";
-const YIELDABLE_CANCEL = "cancel";
 
 const GENERATOR_STATE_BEFORE_CREATE = "BEFORE_CREATE";
 const GENERATOR_STATE_HAS_MORE_VALUES = "HAS_MORE_VALUES";

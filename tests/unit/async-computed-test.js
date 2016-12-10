@@ -106,12 +106,31 @@ test("async properties depending on async properties", function(assert) {
   Ember.run(() => {
     obj = klass.create();
     assert.equal(obj.get('c.value'), null);
+    aDefer.resolve('A');
+    bDefer.resolve('B');
   });
-  // TODO: test that these are both set to begin with, pending
-  // task-aware implementation of `all()`.
-  Ember.run(aDefer, 'resolve', 'A');
-  Ember.run(bDefer, 'resolve', 'B');
   assert.deepEqual(obj.get('c.value'), ['A', 'B']);
 });
+
+test("safe zalgo: synchronously-peekable async chains can be synchrously .get()ed", function(assert) {
+  assert.expect(1);
+
+  let klass = Ember.Object.extend({
+    a: asyncComputed(function * () {
+      return Ember.RSVP.resolve('A');
+    }),
+    b: asyncComputed(function * () {
+      return Ember.RSVP.resolve('B');
+    }),
+    c: asyncComputed('a', 'b', function * (a, b) {
+      return [a, b];
+    }),
+  });
+
+  Ember.run(() => {
+    assert.deepEqual(klass.create().get('c.value'), ['A', 'B']);
+  });
+});
+
 
 
