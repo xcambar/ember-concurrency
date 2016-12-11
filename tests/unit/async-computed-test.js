@@ -32,7 +32,7 @@ test("async properties get passed synchronously resolved values of their async p
     a: asyncComputed(function * () {
       return 999;
     }),
-    b: asyncComputed('a', function * (a) {
+    b: asyncComputed('*a', function * (a) {
       assert.equal(a, 999);
       return a;
     }),
@@ -48,7 +48,7 @@ test("async properties get passed sync resolved yieldables", function(assert) {
 
   let klass = Ember.Object.extend({
     a: null,
-    b: asyncComputed('a', function * (a) {
+    b: asyncComputed('*a', function * (a) {
       assert.equal(a, 999);
       return a;
     }),
@@ -67,7 +67,7 @@ test("async properties get passed async resolved yieldables", function(assert) {
 
   let klass = Ember.Object.extend({
     a: null,
-    b: asyncComputed('a', function * () {
+    b: asyncComputed('*a', function * () {
       return 123;
     }),
   });
@@ -97,7 +97,7 @@ test("async properties depending on async properties", function(assert) {
       bDefer = defer();
       return bDefer.promise;
     }),
-    c: asyncComputed('a', 'b', function * (a, b) {
+    c: asyncComputed('*a', '*b', function * (a, b) {
       return [a, b];
     }),
   });
@@ -112,7 +112,7 @@ test("async properties depending on async properties", function(assert) {
   assert.deepEqual(obj.get('c.value'), ['A', 'B']);
 });
 
-test("safe zalgo: synchronously-peekable async chains can be synchrously .get()ed", function(assert) {
+test("safe zalgo: synchronously-peekable async chains can be synchronously .get()ed", function(assert) {
   assert.expect(1);
 
   let klass = Ember.Object.extend({
@@ -122,7 +122,7 @@ test("safe zalgo: synchronously-peekable async chains can be synchrously .get()e
     b: asyncComputed(function * () {
       return Ember.RSVP.resolve('B');
     }),
-    c: asyncComputed('a', 'b', function * (a, b) {
+    c: asyncComputed('*a', '*b', function * (a, b) {
       return [a, b];
     }),
   });
@@ -131,6 +131,39 @@ test("safe zalgo: synchronously-peekable async chains can be synchrously .get()e
     assert.deepEqual(klass.create().get('c.value'), ['A', 'B']);
   });
 });
+
+test("dependency invalidation", function(assert) {
+  assert.expect(9);
+
+  let invalidations = [];
+
+  let klass = Ember.Object.extend({
+    syncValue: "abc",
+    a: asyncComputed('syncValue', function * () {
+      assert.equal(arguments.length, 0);
+      let v = this.get('syncValue');
+      invalidations.push(v);
+      return v;
+    }),
+  });
+
+  let obj;
+  Ember.run(() => {
+    obj = klass.create();
+    assert.equal(obj.get('a.value'), 'abc');
+    obj.set('syncValue', 'wat');
+    assert.equal(obj.get('a.value'), 'wat');
+    obj.set('syncValue', 'lol');
+    assert.deepEqual(invalidations, ['abc', 'wat']);
+  });
+  assert.deepEqual(invalidations, ['abc', 'wat']);
+  Ember.run(() => {
+    assert.equal(obj.get('a.value'), 'lol');
+    assert.deepEqual(invalidations, ['abc', 'wat', 'lol']);
+  });
+});
+
+
 
 
 

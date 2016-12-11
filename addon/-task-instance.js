@@ -115,7 +115,7 @@ let taskInstanceAttrs = {
   _disposer: null,
   _completionState: COMPLETION_PENDING,
   task: null,
-  args: null,
+  args: [],
   _hasSubscribed: false,
 
   /**
