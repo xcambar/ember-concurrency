@@ -41,6 +41,7 @@ Router.map(function() {
   this.route('experimental-prediction');
   this.route('helpers-test');
   this.route('data-test');
+  this.route('timer-cancel-test');
   this.route('task-injection-test');
 });
 
