@@ -6,7 +6,7 @@ module.exports = function(defaults) {
   var includePolyfill = process.env.EMBER_ENV === 'production' || process.env.CI;
 
   var babelOptions = {
-    optional: ['es7.decorators']
+    optional: ['es7.decorators'],
   };
 
   if (includePolyfill) {
