@@ -416,7 +416,7 @@ export const Task = EmberObject.extend(TaskStateMixin, {
 export class TaskProperty extends _ComputedProperty {
   constructor(taskFn) {
     let tp;
-    super(function(_propertyName) {
+    super([function(_propertyName) {
       taskFn.displayName = `${_propertyName} (task)`;
       return Task.create({
         fn: tp.taskFn,
@@ -428,7 +428,7 @@ export class TaskProperty extends _ComputedProperty {
         _debug: tp._debug,
         _hasEnabledEvents: tp._hasEnabledEvents
       });
-    });
+    }]);
     tp = this;
     this.taskFn = taskFn;
     this.eventNames = null;
